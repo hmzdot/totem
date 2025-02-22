@@ -7,16 +7,13 @@ use message::{
 };
 
 pub struct Client {
-    socket: UdpSocket,
     addrs: [SocketAddr; 4],
     credential: Option<Credential>,
 }
 
 impl Client {
     pub fn new(addrs: [SocketAddr; 4]) -> Self {
-        let socket = UdpSocket::bind("0.0.0.0").expect("bind");
         Self {
-            socket,
             addrs,
             credential: None,
         }
@@ -25,14 +22,15 @@ impl Client {
     pub fn run(&mut self) {
         use HeaderType::*;
 
+        let socket = UdpSocket::bind("0.0.0.0:0").expect("bind");
         let header = Header::with_random_id(BindingRequest);
         let message = Message::new(header, vec![]);
-        self.socket
+        socket
             .send_to(&message.encode(), self.addrs[0])
             .expect("send to");
 
         let mut buf = [0; 1024];
-        let (amt, _) = self.socket.recv_from(&mut buf).unwrap();
+        let (amt, _) = socket.recv_from(&mut buf).unwrap();
 
         let buf = &buf[..amt];
         let message = Message::decode(buf);
