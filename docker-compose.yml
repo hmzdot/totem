@@ -1,9 +1,11 @@
 version: "3"
 
 services:
+    # Server running on the public network
     server:
         image: totem-stun
         cap_add:
+            # Need NET_ADMIN capacity to allocate IP address
             - NET_ADMIN
         networks:
             public_net:
@@ -12,12 +14,12 @@ services:
             /bin/sh -c "echo 'Allocating IP address 172.19.0.4' && \
             PUBLIC_IF=$$(ip -o -4 addr list | grep 172.19.0.2 | awk '{print $$2}') && \
             ip addr add 172.19.0.4/24 dev $$PUBLIC_IF && \
-
             echo 'Starting stun server...' && \
             ./target/release/server"
-
+    # NAT server that bridges private and public networks
     nat:
         image: alpine:latest
+        # Need privilege to call sysctl
         privileged: true
         cap_add:
             - NET_ADMIN
@@ -33,7 +35,7 @@ services:
             iptables -t nat -A POSTROUTING -o $${PUBLIC_IF} -j MASQUERADE && \
             tail -f /dev/null
             "
-
+    # Client running on private network
     client:
         image: totem-stun
         cap_add:
@@ -42,6 +44,7 @@ services:
             - nat
         networks:
             private_net:
+        # Connect to NAT server
         command: sh -c "
             apk add --no-cache curl && \
             ip route del default && \
@@ -49,7 +52,6 @@ services:
             ./target/release/client && \
             tail -f /dev/null
             "
-
 networks:
     private_net:
         ipam:
